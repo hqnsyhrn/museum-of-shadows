@@ -1,67 +1,44 @@
-// Museum of Shadows — tiny synthesised sounds, no audio files.
-// Everything is a WebAudio oscillator, created only after the player's
-// first key or click, so the game stays silent (and error-free) in a
-// headless screenshot run where nobody ever presses a key.
-const audio = {
-  context: null,
-  enabled: true,
+// Museum of Shadows — tiny WebAudio blips. No audio files, no network.
+(function () {
+  "use strict";
+  var ac = null;
 
-  ensure() {
-    if (!this.enabled || this.context) return;
+  function ctx() {
     try {
-      const Ctor =
-        window.AudioContext ||
-        window.webkitAudioContext;
-      if (!Ctor) return;
-      this.context = new Ctor();
-    } catch {
-      this.context = null;
+      if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (ac.state === "suspended") ac.resume();
+      return ac;
+    } catch (e) {
+      return null;
     }
-  },
+  }
 
-  tone(freq, seconds, type, gainValue) {
-    if (!this.enabled || !this.context) return;
+  function blip(freq, dur, type, gain) {
+    var c = ctx();
+    if (!c) return;
     try {
-      const t0 = this.context.currentTime;
-      const osc = this.context.createOscillator();
-      const gain = this.context.createGain();
-      osc.type = type || "sine";
-      osc.frequency.setValueAtTime(freq, t0);
-      gain.gain.setValueAtTime(gainValue || 0.08, t0);
-      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + seconds);
-      osc.connect(gain);
-      gain.connect(this.context.destination);
-      osc.start(t0);
-      osc.stop(t0 + seconds);
-    } catch {
-      // Sound is garnish; a failure must never break the game.
-    }
-  },
+      var o = c.createOscillator();
+      var g = c.createGain();
+      o.type = type || "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(gain || 0.06, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + dur);
+      o.connect(g);
+      g.connect(c.destination);
+      o.start();
+      o.stop(c.currentTime + dur);
+    } catch (e) { /* silence is fine */ }
+  }
 
-  coin() {
-    this.tone(1567, 0.12, "triangle", 0.07);
-    setTimeout(() => this.tone(2093, 0.16, "triangle", 0.05), 70);
-  },
-
-  pickup() {
-    this.tone(523, 0.12, "sine", 0.09);
-    setTimeout(() => this.tone(784, 0.2, "sine", 0.09), 90);
-  },
-
-  alarm() {
-    this.tone(220, 0.25, "sawtooth", 0.06);
-    setTimeout(() => this.tone(174, 0.3, "sawtooth", 0.06), 180);
-  },
-
-  win() {
-    [523, 659, 784, 1046].forEach((f, i) =>
-      setTimeout(() => this.tone(f, 0.22, "sine", 0.09), i * 110),
-    );
-  },
-
-  busted() {
-    this.tone(110, 0.5, "sawtooth", 0.08);
-  },
-};
-
-export { audio };
+  window.MOS_AUDIO = {
+    coin: function () { blip(1900, 0.09, "triangle", 0.05); setTimeout(function () { blip(2400, 0.12, "triangle", 0.05); }, 70); },
+    clink: function () { blip(2600, 0.05, "square", 0.03); },
+    alert: function () { blip(220, 0.28, "sawtooth", 0.07); setTimeout(function () { blip(330, 0.28, "sawtooth", 0.07); }, 140); },
+    steal: function () { blip(880, 0.12, "sine", 0.06); setTimeout(function () { blip(1318, 0.18, "sine", 0.06); }, 110); },
+    win: function () {
+      var notes = [523, 659, 784, 1046];
+      notes.forEach(function (f, i) { setTimeout(function () { blip(f, 0.25, "sine", 0.07); }, i * 130); });
+    },
+    caught: function () { blip(160, 0.4, "sawtooth", 0.08); setTimeout(function () { blip(110, 0.5, "sawtooth", 0.08); }, 200); },
+  };
+})();

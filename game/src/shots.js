@@ -1,117 +1,95 @@
-// Museum of Shadows — staged moments for the screenshots.
-// A screenshot needs a readable instant: a guard's cone sweeping past
-// the thief behind a case, an alarm chase, the getaway. Each shot sets
-// the real game state — positions, suspicion, relics, alert — and then
-// freezes the simulation, so the frame the browser captures is exactly
-// the frame the game itself renders. Nothing here is drawn by hand;
-// the renderer draws every pixel from this state.
-import { CONFIG } from "./config.js";
-import { updateGuards } from "./guards.js";
+// Museum of Shadows — fixed demo states for the screenshots.
+// ?shot=start | play | chase | win — each one deterministic: fixed guard
+// and thief positions, no randomness, so a screenshot is reproducible.
+(function () {
+  "use strict";
+  var CFG = window.MOS_CONFIG;
 
-const TILE = CONFIG.TILE;
-
-function placeGuard(guard, tx, ty, dirDegrees, stateName, suspicion) {
-  guard.x = (tx + 0.5) * TILE;
-  guard.y = (ty + 0.5) * TILE;
-  guard.dir = (dirDegrees * Math.PI) / 180;
-  guard.state = stateName;
-  guard.suspicion = suspicion;
-  guard.lastSeen = { x: guard.x, y: guard.y };
-  guard.pauseTimer = 0;
-  guard.lookTimer = 0;
-}
-
-function placePlayer(player, tx, ty, dirDegrees, sneaking) {
-  player.x = (tx + 0.5) * TILE;
-  player.y = (ty + 0.5) * TILE;
-  player.dir = (dirDegrees * Math.PI) / 180;
-  player.sneaking = sneaking;
-  player.moving = false;
-  player.stealProgress = 0;
-  player.stealing = null;
-}
-
-// Let the patrols run on their own for a few seconds so the cover shot
-// catches the guards mid-route instead of lined up at their starts.
-// The simulation is deterministic: fixed steps, no randomness.
-function runPatrols(state, seconds) {
-  const events = [];
-  const dummy = { ...state.player, hidden: true };
-  for (let t = 0; t < seconds; t += 1 / 60) {
-    updateGuards(state.guards, state.level, dummy, [], 1 / 60, events);
-  }
-}
-
-export function applyShot(state, name) {
-  const { level, player, guards } = state;
-  state.frozen = true;
-  state.shot = name;
-
-  if (name === "cover") {
-    // Title screen over a living museum: guards mid-patrol, cones out,
-    // relics glinting, the thief waiting at the door.
-    state.phase = "title";
-    state.time = 6.0;
-    runPatrols(state, 6);
-    return true;
+  function placeGuard(guards, i, x, y, facing, state, suspicion) {
+    var g = guards[i];
+    g.x = x; g.y = y; g.facing = facing;
+    g.state = state || "patrol";
+    g.suspicion = suspicion || 0;
+    g.wait = 0;
+    g.target = null;
   }
 
-  if (name === "patrol") {
-    // One relic down. The thief crouches behind a display case in the
-    // grand hall while a guard's cone sweeps the spot — suspicion
-    // climbing, cover holding.
-    state.phase = "playing";
-    state.time = 95.0;
-    state.elapsed = 95;
-    state.alert = 12;
-    level.relics[0].taken = true;
-    player.relics = 1;
-    placePlayer(player, 10, 9, -90, true);
-    runPatrols(state, 4);
-    placeGuard(guards[4], 10, 7, 90, "suspicious", 38);
-    guards[4].lastSeen = { x: player.x, y: player.y };
-    return true;
+  // state: the live game state; mode: one of start/play/chase/win.
+  // Returns the overlay title to show, or null for plain play.
+  function applyShot(state, mode) {
+    var guards = state.guards;
+    var player = state.player;
+    if (mode === "start") {
+      // Title view: the thief at the door, guards on patrol, cones sweeping.
+      player.x = 3.5; player.y = 10.5; player.facing = -Math.PI / 2;
+      placeGuard(guards, 0, 8.5, 1.5, 0, "patrol", 0);
+      placeGuard(guards, 1, 1.5, 6.5, Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 2, 8.5, 5.5, 0, "patrol", 0);
+      placeGuard(guards, 3, 16.5, 5.5, -Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 4, 9.5, 8.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 5, 8.5, 3.5, 0, "patrol", 0);
+      placeGuard(guards, 6, 8.5, 10.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 7, 9.5, 4.5, Math.PI / 2, "patrol", 0);
+      return "title";
+    }
+    if (mode === "play") {
+      // Near miss: the thief crouched behind the Jade Idol pedestal, one
+      // guard's cone sweeping past, suspicion half full, mask already taken.
+      state.level.relics[0].taken = true;
+      player.relics = 1;
+      player.x = 13.0; player.y = 6.0; player.facing = Math.PI; player.sneaking = true;
+      placeGuard(guards, 0, 8.5, 1.5, 0.5, "patrol", 0);
+      placeGuard(guards, 1, 1.5, 6.5, Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 2, 6.5, 5.5, 0, "patrol", 0);
+      placeGuard(guards, 3, 15.5, 5.2, Math.PI * 0.85, "curious", 58);
+      guards[3].target = { x: 13.0, y: 6.0 };
+      placeGuard(guards, 4, 9.5, 8.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 5, 5.5, 3.5, 0, "patrol", 0);
+      placeGuard(guards, 6, 8.5, 10.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 7, 9.5, 6.8, -Math.PI / 2, "patrol", 0);
+      state.elapsed = 87;
+      return null;
+    }
+    if (mode === "chase") {
+      // Spotted: two guards chasing the thief as he sprints for the exit
+      // with all three relics, alarm red.
+      state.level.relics[0].taken = true;
+      state.level.relics[1].taken = true;
+      state.level.relics[2].taken = true;
+      player.relics = 3;
+      player.x = 13.8; player.y = 9.6; player.facing = 0.3;
+      placeGuard(guards, 0, 8.5, 1.5, 0, "patrol", 0);
+      placeGuard(guards, 1, 1.5, 6.5, Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 2, 10.8, 8.2, 0.9, "chase", 100);
+      placeGuard(guards, 3, 16.5, 5.5, -Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 4, 12.6, 6.8, 1.2, "chase", 100);
+      placeGuard(guards, 5, 8.5, 3.5, 0, "patrol", 0);
+      placeGuard(guards, 6, 10.5, 10.5, 0.3, "chase", 100);
+      placeGuard(guards, 7, 9.5, 4.5, Math.PI / 2, "patrol", 0);
+      state.elapsed = 214;
+      state.alarm = true;
+      return null;
+    }
+    if (mode === "win") {
+      // Clean getaway: all three relics, the thief stepping through the exit.
+      state.level.relics[0].taken = true;
+      state.level.relics[1].taken = true;
+      state.level.relics[2].taken = true;
+      player.relics = 3;
+      player.x = 15.2; player.y = 10.2; player.facing = Math.PI / 2;
+      placeGuard(guards, 0, 8.5, 1.5, 0, "patrol", 0);
+      placeGuard(guards, 1, 1.5, 6.5, Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 2, 8.5, 5.5, 0, "patrol", 0);
+      placeGuard(guards, 3, 16.5, 5.5, -Math.PI / 2, "patrol", 0);
+      placeGuard(guards, 4, 9.5, 8.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 5, 8.5, 3.5, 0, "patrol", 0);
+      placeGuard(guards, 6, 8.5, 10.5, Math.PI, "patrol", 0);
+      placeGuard(guards, 7, 9.5, 4.5, Math.PI / 2, "patrol", 0);
+      state.elapsed = 248;
+      return "win";
+    }
+    return null;
   }
 
-  if (name === "chase") {
-    // Two relics down and the hall is lit up: two guards in full alarm,
-    // red cones, the thief sprinting for the south doors.
-    state.phase = "playing";
-    state.time = 210.0;
-    state.elapsed = 210;
-    state.alert = 78;
-    state.alarmsRaised = 1;
-    level.relics[0].taken = true;
-    level.relics[1].taken = true;
-    player.relics = 2;
-    player.coins = 2;
-    placePlayer(player, 15, 10, 90, false);
-    player.moving = true;
-    placeGuard(guards[4], 13, 9, 35, "alarm", 100);
-    guards[4].lastSeen = { x: player.x, y: player.y };
-    placeGuard(guards[5], 18, 11, 145, "alarm", 100);
-    guards[5].lastSeen = { x: player.x, y: player.y };
-    runPatrols(state, 0); // keep the staged guards exactly where set
-    return true;
-  }
-
-  if (name === "escape") {
-    // Clean getaway: all three relics, no alarm raised, the thief on
-    // the green exit tiles as the doors swing open.
-    state.phase = "win";
-    state.time = 287.0;
-    state.elapsed = 287;
-    state.alert = 0;
-    state.alarmsRaised = 0;
-    for (const relic of level.relics) relic.taken = true;
-    player.relics = 3;
-    player.coins = 2;
-    placePlayer(player, 14, 18, 0, false);
-    runPatrols(state, 3);
-    return true;
-  }
-
-  return false;
-}
-
-export const SHOT_NAMES = ["cover", "patrol", "chase", "escape"];
+  window.MOS_SHOTS = { applyShot: applyShot };
+})();

@@ -1,44 +1,69 @@
-/* Museum of Shadows — page chrome around the canvas. The game itself
-   draws everything on the canvas; this only centers it on a dark page. */
-* {
-  box-sizing: border-box;
+html, body {
+  margin: 0; padding: 0; height: 100%; overflow: hidden;
+  background: #05060d; color: #e8e4d8;
+  font-family: Georgia, "Times New Roman", serif;
 }
+#stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+#game { width: 100vw; height: 100vh; object-fit: contain; display: block; background: #0a0d18; }
+#status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-html,
-body {
-  margin: 0;
-  padding: 0;
-  background: #070912;
-  color: #f2ead8;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: center; gap: 18px;
+  padding: 10px 18px;
+  background: linear-gradient(180deg, rgba(5,6,13,0.92), rgba(5,6,13,0));
+  pointer-events: none; z-index: 5;
 }
+#hud .brand { font-size: 15px; letter-spacing: 3px; color: #ffd34d; font-weight: bold; white-space: nowrap; }
+#hud .sep { color: #5a5470; }
+#hud .stat { font-size: 14px; white-space: nowrap; }
+#relics .relic { color: #8a8468; font-size: 18px; margin-right: 2px; }
+#relics .relic.got { color: #ffd34d; text-shadow: 0 0 8px rgba(255, 211, 77, 0.8); }
+#suspicion { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+#suspicion .label { font-size: 12px; letter-spacing: 2px; color: #b9b2a0; }
+#suspicion-bar { display: inline-block; width: 150px; height: 10px; border: 1px solid #6a6378; border-radius: 5px; background: #14121e; overflow: hidden; }
+#suspicion-fill { display: block; height: 100%; width: 0%; background: #ffd34d; transition: width 0.15s; }
+#suspicion-fill.warm { background: #ff9a3d; }
+#suspicion-fill.hot { background: #ff5040; }
+#suspicion-label { font-size: 12px; letter-spacing: 2px; color: #ffd34d; min-width: 92px; }
 
-main {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  gap: 12px;
+#objective {
+  position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%);
+  font-size: 14px; font-style: italic; color: #cfc8b4;
+  background: rgba(5,6,13,0.75); border: 1px solid #3a3450;
+  padding: 7px 16px; border-radius: 20px; z-index: 5; pointer-events: none; white-space: nowrap;
 }
+#toast {
+  position: fixed; top: 64px; left: 50%; transform: translateX(-50%);
+  font-size: 15px; color: #ffe9a8; background: rgba(20,16,8,0.9);
+  border: 1px solid #c9a227; padding: 8px 18px; border-radius: 6px;
+  opacity: 0; transition: opacity 0.3s; z-index: 6; pointer-events: none; white-space: nowrap;
+}
+#toast.show { opacity: 1; }
 
-canvas {
-  display: block;
-  max-width: 100%;
-  height: auto;
-  border: 1px solid #2b3350;
-  border-radius: 6px;
-  box-shadow: 0 0 60px rgba(0, 0, 0, 0.8), 0 0 24px rgba(232, 182, 76, 0.08);
-  background: #141a2e;
-  cursor: crosshair;
+.overlay {
+  position: fixed; inset: 0; z-index: 10;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: rgba(4, 5, 12, 0.72); text-align: center; padding: 20px;
 }
+.overlay.hidden { display: none; }
+.overlay h1 {
+  margin: 0 0 6px; font-size: 54px; letter-spacing: 8px; color: #ffd34d;
+  text-shadow: 0 0 24px rgba(255, 211, 77, 0.45), 0 2px 0 #7a5c00;
+}
+.overlay h2 { margin: 0 0 10px; font-size: 18px; letter-spacing: 4px; color: #b9b2a0; font-weight: normal; }
+.overlay p { max-width: 560px; font-size: 16px; line-height: 1.55; color: #ddd6c2; margin: 8px 0; }
+.overlay .keys { font-size: 14px; color: #9d9684; }
+.overlay .keys b { color: #ffd34d; }
+.overlay button {
+  margin-top: 18px; font-family: Georgia, serif; font-size: 18px; letter-spacing: 2px;
+  color: #1a1405; background: #ffd34d; border: none; border-radius: 6px;
+  padding: 12px 34px; cursor: pointer; box-shadow: 0 0 22px rgba(255, 211, 77, 0.45);
+}
+.overlay button:hover { background: #ffe08a; }
+#end-title.win { color: #39ff88; text-shadow: 0 0 24px rgba(57, 255, 136, 0.45); }
+#end-title.lose { color: #ff5040; text-shadow: 0 0 24px rgba(255, 80, 64, 0.45); }
+#end-stats { font-size: 15px; letter-spacing: 2px; color: #b9b2a0; }
 
-.hint {
-  margin: 0;
-  max-width: 1280px;
-  text-align: center;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #9aa7c7;
-}
+body.alarm #hud { background: linear-gradient(180deg, rgba(60,6,6,0.9), rgba(60,6,6,0)); }
+body.alarm #suspicion-label { color: #ff5040; }

@@ -1,28 +1,30 @@
-// Museum of Shadows — hand-in program (Node 22, standard library only).
-// Copies game/ and screenshots/ into the output directory and writes
-// dossier.json with buildDossier from the kit's vendor copy, exactly
-// the dossier the gate rebuilds and compares byte for byte.
-// Run: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-// (Outside the grader MAKEFUN_OUTPUT_DIR stands in for /output.)
-import { cp, mkdir, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+// Museum of Shadows — make.fun hand-in program.
+//
+// Copies game/ and screenshots/ from this repository into the output
+// directory and writes dossier.json there with the kit's buildDossier.
+// Outside the grader, MAKEFUN_OUTPUT_DIR stands in for /output.
+
 import { buildDossier } from "./vendor/makefun-game.ts";
+import { cpSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = fileURLToPath(new URL(".", import.meta.url));
-const outputDir = process.env.MAKEFUN_OUTPUT_DIR || "/output";
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 
-await rm(outputDir, { recursive: true, force: true });
-await mkdir(outputDir, { recursive: true });
+mkdirSync(outDir, { recursive: true });
+for (const name of ["game", "screenshots"]) {
+  const target = join(outDir, name);
+  if (existsSync(target)) rmSync(target, { recursive: true, force: true });
+  cpSync(join(repoRoot, name), target, { recursive: true });
+}
 
-await cp(path.join(repoRoot, "game"), path.join(outputDir, "game"), {
-  recursive: true,
+const dossier = buildDossier(outDir, {
+  text_max_bytes: 163840,
+  screenshots: { max: 4, max_bytes: 262144 },
+  game_max_files: 993,
+  game_max_bytes: 48 * 1024 * 1024,
+  game_path_max_bytes: 1000,
 });
-await cp(path.join(repoRoot, "screenshots"), path.join(outputDir, "screenshots"), {
-  recursive: true,
-});
-
-const dossier = await buildDossier(repoRoot, { text_max_bytes: 163840 });
-await writeFile(path.join(outputDir, "dossier.json"), dossier);
-
-console.log(`wrote ${outputDir}/dossier.json (${dossier.length} bytes)`);
+writeFileSync(join(outDir, "dossier.json"), dossier);
+console.log(`wrote ${join(outDir, "dossier.json")} (${dossier.length} bytes)`);

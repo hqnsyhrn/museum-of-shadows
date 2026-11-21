@@ -1,135 +1,109 @@
-// Museum of Shadows — the museum itself: walls, display cases (cover),
-// the three relic pedestals, the exit, and the thief's entrance.
-// Legend: # wall, . floor, C display case, R relic pedestal, E exit, P spawn.
-// The map is 32 by 20 tiles of 40 px, exactly one 1280x800 screen, so
-// the whole level — cones, cover and exit — is visible in every shot.
-import { CONFIG } from "./config.js";
+// Museum of Shadows — the museum grid: walls, cover, relics, exit, lamps.
+(function () {
+  "use strict";
+  var CFG = window.MOS_CONFIG;
 
-export const MAP = [
-  "################################",
-  "#.......#.......#......#.......#",
-  "#..R....#...C...#..C...#...R...#",
-  "#.......#.......#......#.......#",
-  "#..C....#...C...#..C...#.......#",
-  "#.......#.......#......#.......#",
-  "###.#######..#######..#######.##",
-  "#..............................#",
-  "#..C......C.....C......C....C..#",
-  "#..............................#",
-  "#......C..........C............#",
-  "#..............................#",
-  "###.#######..#######..#######.##",
-  "#.......#.......#......#.......#",
-  "#..C....#...C...#..C...#...C...#",
-  "#.......#.......#......#.......#",
-  "#.......#...R...#......#.......#",
-  "#.......#.......#......#.......#",
-  "#..P...........................#",
-  "###############EE###############",
-];
-
-export const RELIC_NAMES = [
-  "Golden Scarab",
-  "Jade Mask",
-  "Star Sapphire",
-];
-
-export const GUARD_ROUTES = [
-  // West gallery, north.
-  [[2, 1], [6, 1], [6, 5], [2, 5]],
-  // Central-west gallery, north.
-  [[10, 1], [14, 1], [14, 5], [10, 5]],
-  // Central-east gallery, north.
-  [[18, 1], [21, 1], [21, 5], [18, 5]],
-  // East gallery, north.
-  [[25, 1], [29, 1], [29, 5], [25, 5]],
-  // Grand hall, west half.
-  [[2, 7], [15, 7], [15, 11], [2, 11]],
-  // Grand hall, east half.
-  [[17, 7], [29, 7], [29, 11], [17, 11]],
-  // Central galleries, south (guards the Star Sapphire).
-  [[10, 13], [14, 13], [14, 17], [10, 17]],
-  // East gallery, south.
-  [[25, 13], [29, 13], [29, 17], [25, 17]],
-];
-
-export function buildLevel() {
-  const grid = MAP.map((row) => row.split(""));
-  const relics = [];
-  const cases = [];
-  let spawn = { x: 3.5 * CONFIG.TILE, y: 18.5 * CONFIG.TILE };
-  const exitTiles = [];
-
-  for (let ty = 0; ty < CONFIG.ROWS; ty++) {
-    for (let tx = 0; tx < CONFIG.COLS; tx++) {
-      const ch = grid[ty][tx];
-      const cx = (tx + 0.5) * CONFIG.TILE;
-      const cy = (ty + 0.5) * CONFIG.TILE;
-      if (ch === "R") {
-        relics.push({
-          index: relics.length,
-          name: RELIC_NAMES[relics.length] || "Relic",
-          tx,
-          ty,
-          x: cx,
-          y: cy,
-          taken: false,
-        });
-      } else if (ch === "C") {
-        cases.push({ tx, ty, x: cx, y: cy });
-      } else if (ch === "P") {
-        spawn = { x: cx, y: cy };
-      } else if (ch === "E") {
-        exitTiles.push({ tx, ty, x: cx, y: cy });
+  function buildLevel() {
+    var rows = CFG.MAP;
+    var h = rows.length;
+    var w = rows[0].length;
+    var walls = [];
+    var pedestals = [];
+    var lamps = [];
+    var exit = null;
+    var start = { x: 2.5, y: 10.5 };
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var ch = rows[y][x];
+        if (ch === "#") walls.push({ x: x, y: y });
+        else if (ch === "P") pedestals.push({ x: x, y: y, relic: null });
+        else if (ch === "R") pedestals.push({ x: x, y: y, relic: null });
+        else if (ch === "L") lamps.push({ x: x + 0.5, y: y + 0.5 });
+        else if (ch === "E") exit = { x: x + 0.5, y: y + 0.5 };
+        else if (ch === "S") start = { x: x + 0.5, y: y + 0.5 };
       }
     }
+    var relics = CFG.RELICS.map(function (r) {
+      var ped = null;
+      for (var i = 0; i < pedestals.length; i++) {
+        if (pedestals[i].x === r.x && pedestals[i].y === r.y) ped = pedestals[i];
+      }
+      var relic = { id: r.id, name: r.name, x: r.x + 0.5, y: r.y + 0.5, gem: r.gem, glow: r.glow, taken: false };
+      if (ped) ped.relic = relic;
+      return relic;
+    });
+    return { w: w, h: h, walls: walls, pedestals: pedestals, lamps: lamps, exit: exit, start: start, relics: relics };
   }
 
-  const inBounds = (tx, ty) =>
-    tx >= 0 && ty >= 0 && tx < CONFIG.COLS && ty < CONFIG.ROWS;
-  const tileAt = (tx, ty) => (inBounds(tx, ty) ? grid[ty][tx] : "#");
-  const isWall = (tx, ty) => tileAt(tx, ty) === "#";
-  const isCase = (tx, ty) => tileAt(tx, ty) === "C";
-  const blocksMove = (tx, ty) => isWall(tx, ty) || isCase(tx, ty);
-  // Walls and display cases both block a guard's line of sight:
-  // crouching behind a case is real cover.
-  const blocksSight = (tx, ty) => isWall(tx, ty) || isCase(tx, ty);
-  const isExit = (tx, ty) => tileAt(tx, ty) === "E";
-
-  return {
-    grid,
-    relics,
-    cases,
-    spawn,
-    exitTiles,
-    tileAt,
-    isWall,
-    isCase,
-    blocksMove,
-    blocksSight,
-    isExit,
-  };
-}
-
-// Pixel position -> tile coordinates.
-export function tileOf(x, y) {
-  return {
-    tx: Math.floor(x / CONFIG.TILE),
-    ty: Math.floor(y / CONFIG.TILE),
-  };
-}
-
-// Is the straight line between two points blocked by sight-blocking tiles?
-// Samples along the ray; cheap and exact enough for cone checks.
-export function lineBlocked(level, x0, y0, x1, y1) {
-  const dx = x1 - x0;
-  const dy = y1 - y0;
-  const dist = Math.hypot(dx, dy);
-  const steps = Math.max(1, Math.ceil(dist / 8));
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    const { tx, ty } = tileOf(x0 + dx * t, y0 + dy * t);
-    if (level.blocksSight(tx, ty)) return true;
+  function tileAt(level, x, y) {
+    var tx = Math.floor(x), ty = Math.floor(y);
+    if (tx < 0 || ty < 0 || tx >= level.w || ty >= level.h) return "#";
+    return CFG.MAP[ty][tx];
   }
-  return false;
-}
+
+  function isWall(level, x, y) {
+    return tileAt(level, x, y) === "#";
+  }
+
+  // A tile blocks a guard's line of sight: walls always, pedestals too —
+  // crouching behind a display case is real cover.
+  function blocksSight(level, x, y) {
+    var t = tileAt(level, x, y);
+    return t === "#" || t === "P" || t === "R";
+  }
+
+  // Line of sight between two floor points, sampled finely. True when the
+  // whole segment stays clear of sight-blocking tiles.
+  function hasLineOfSight(level, x0, y0, x1, y1) {
+    var dx = x1 - x0, dy = y1 - y0;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var steps = Math.max(1, Math.ceil(dist / 0.12));
+    for (var i = 1; i < steps; i++) {
+      var t = i / steps;
+      if (blocksSight(level, x0 + dx * t, y0 + dy * t)) return false;
+    }
+    return true;
+  }
+
+  // Move a circle (radius r) through the grid, sliding along walls.
+  function moveCircle(level, pos, dx, dy, r) {
+    var nx = pos.x + dx;
+    if (!hitsWall(level, nx, pos.y, r)) pos.x = nx;
+    var ny = pos.y + dy;
+    if (!hitsWall(level, pos.x, ny, r)) pos.y = ny;
+  }
+
+  function hitsWall(level, x, y, r) {
+    // Test the four corners of the circle's bounding box against walls
+    // and pedestals (both are solid to walk through).
+    var pts = [[x - r, y - r], [x + r, y - r], [x - r, y + r], [x + r, y + r],
+               [x, y - r], [x, y + r], [x - r, y], [x + r, y]];
+    for (var i = 0; i < pts.length; i++) {
+      var t = tileAt(level, pts[i][0], pts[i][1]);
+      if (t === "#" || t === "P" || t === "R") return true;
+    }
+    return false;
+  }
+
+  // Distance along a ray from (x,y) in direction (dx,dy) until it hits a
+  // sight-blocking tile, capped at maxDist. Used to shape vision cones.
+  function castRay(level, x, y, dx, dy, maxDist) {
+    var step = 0.15;
+    var d = step;
+    while (d < maxDist) {
+      if (blocksSight(level, x + dx * d, y + dy * d)) return d;
+      d += step;
+    }
+    return maxDist;
+  }
+
+  window.MOS_LEVEL = {
+    buildLevel: buildLevel,
+    tileAt: tileAt,
+    isWall: isWall,
+    blocksSight: blocksSight,
+    hasLineOfSight: hasLineOfSight,
+    moveCircle: moveCircle,
+    castRay: castRay,
+  };
+})();
