@@ -1,34 +1,28 @@
-// Museum of Shadows — entrypoint for make.fun (program/v1).
+// Museum of Shadows — hand-in program (Node 22, standard library only).
 // Copies game/ and screenshots/ into the output directory and writes
-// dossier.json with buildDossier from vendor/makefun-game.ts.
-// Standard library only; deterministic: two runs write the same bytes.
+// dossier.json with buildDossier from the kit's vendor copy, exactly
+// the dossier the gate rebuilds and compares byte for byte.
+// Run: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// (Outside the grader MAKEFUN_OUTPUT_DIR stands in for /output.)
+import { cp, mkdir, rm, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { buildDossier } from "./vendor/makefun-game.ts";
 
-import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { buildDossier } from './vendor/makefun-game.ts';
+const repoRoot = fileURLToPath(new URL(".", import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR || "/output";
 
-const repoRoot = dirname(fileURLToPath(import.meta.url));
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+await rm(outputDir, { recursive: true, force: true });
+await mkdir(outputDir, { recursive: true });
 
-function copyClean(source: string, target: string): void {
-  rmSync(target, { recursive: true, force: true });
-  mkdirSync(dirname(target), { recursive: true });
-  cpSync(source, target, { recursive: true });
-}
+await cp(path.join(repoRoot, "game"), path.join(outputDir, "game"), {
+  recursive: true,
+});
+await cp(path.join(repoRoot, "screenshots"), path.join(outputDir, "screenshots"), {
+  recursive: true,
+});
 
-function main(): void {
-  mkdirSync(outDir, { recursive: true });
-  copyClean(join(repoRoot, 'game'), join(outDir, 'game'));
-  copyClean(join(repoRoot, 'screenshots'), join(outDir, 'screenshots'));
-  const dossier = buildDossier(outDir, {
-    text_max_bytes: 163840,
-    screenshots: { max: 4, max_bytes: 262144 },
-    game_max_files: 993,
-    game_max_bytes: 48 * 1024 * 1024,
-    game_path_max_bytes: 1000,
-  });
-  writeFileSync(join(outDir, 'dossier.json'), dossier);
-}
+const dossier = await buildDossier(repoRoot, { text_max_bytes: 163840 });
+await writeFile(path.join(outputDir, "dossier.json"), dossier);
 
-main();
+console.log(`wrote ${outputDir}/dossier.json (${dossier.length} bytes)`);

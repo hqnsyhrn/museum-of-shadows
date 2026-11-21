@@ -1,97 +1,130 @@
-// Museum of Shadows — the thief: movement, sneak, noise and the thrown coin.
-// Running is fast and loud; sneaking is slow and quiet. A thrown coin lands
-// with a clink and pulls every guard in earshot toward it — the oldest trick
-// in a thief's pocket.
+// Museum of Shadows — the thief.
+// WASD or arrows to move, Shift to sneak (slower, harder to spot),
+// Space or mouse click to throw a coin and pull a guard away, E to
+// lift a relic off its pedestal. Collision slides along walls and
+// display cases; the thief can never walk through cover.
+import { CONFIG } from "./config.js";
 
-import { resolveCircle } from './level.js';
-
-export const PLAYER_RADIUS = 13;
-export const WALK_SPEED = 165;
-export const SNEAK_SPEED = 78;
-export const RUN_NOISE_RADIUS = 105;
-export const COIN_RANGE = 270;
-export const COIN_NOISE_RADIUS = 135;
-
-export class Player {
-  constructor(start) {
-    this.x = start.x;
-    this.y = start.y;
-    this.facing = -Math.PI / 2;
-    this.sneaking = false;
-    this.running = false;
-    this.moving = false;
-    this.stepPhase = 0;
-    this.coins = 6;
-    this.relics = 0;
-    this.everAlerted = false;
-  }
-
-  reset(start) {
-    this.x = start.x;
-    this.y = start.y;
-    this.facing = -Math.PI / 2;
-    this.sneaking = false;
-    this.running = false;
-    this.moving = false;
-    this.coins = 6;
-    this.relics = 0;
-    this.everAlerted = false;
-  }
-
-  update(dt, keys) {
-    let dx = 0;
-    let dy = 0;
-    if (keys.has('arrowup') || keys.has('w')) dy -= 1;
-    if (keys.has('arrowdown') || keys.has('s')) dy += 1;
-    if (keys.has('arrowleft') || keys.has('a')) dx -= 1;
-    if (keys.has('arrowright') || keys.has('d')) dx += 1;
-    this.moving = dx !== 0 || dy !== 0;
-    this.sneaking = keys.has('shift');
-    this.running = this.moving && !this.sneaking;
-
-    if (this.moving) {
-      const len = Math.hypot(dx, dy);
-      const speed = this.sneaking ? SNEAK_SPEED : WALK_SPEED;
-      const step = speed * dt;
-      const nx = this.x + (dx / len) * step;
-      const ny = this.y + (dy / len) * step;
-      const solved = resolveCircle(nx, ny, PLAYER_RADIUS);
-      this.x = solved.x;
-      this.y = solved.y;
-      this.facing = Math.atan2(dy, dx);
-      this.stepPhase += dt * speed * 0.11;
-    }
-  }
-
-  /** Loud feet carry: running within earshot of a guard is an invitation. */
-  noiseRadius() {
-    return this.running ? RUN_NOISE_RADIUS : 0;
-  }
+export function createPlayer(level) {
+  return {
+    x: level.spawn.x,
+    y: level.spawn.y,
+    dir: -Math.PI / 2, // facing up, into the museum
+    sneaking: false,
+    moving: false,
+    coins: CONFIG.COINS_START,
+    relics: 0,
+    stealProgress: 0,
+    stealing: null, // relic being lifted, or null
+    hidden: false,
+    walkCycle: 0,
+  };
 }
 
-export class Coin {
-  constructor(x, y, tx, ty) {
-    this.x = x;
-    this.y = y;
-    const dx = tx - x;
-    const dy = ty - y;
-    const dist = Math.min(Math.hypot(dx, dy), COIN_RANGE);
-    const angle = Math.atan2(dy, dx);
-    this.targetX = x + Math.cos(angle) * dist;
-    this.targetY = y + Math.sin(angle) * dist;
-    this.t = 0; // 0 flying, 1 landed
-    this.ring = 0; // expanding noise ring after landing
-    this.done = false;
+function blockedAt(level, x, y, radius) {
+  // Circle vs blocked tiles: test the tiles the circle overlaps.
+  const x0 = Math.floor((x - radius) / CONFIG.TILE);
+  const x1 = Math.floor((x + radius) / CONFIG.TILE);
+  const y0 = Math.floor((y - radius) / CONFIG.TILE);
+  const y1 = Math.floor((y + radius) / CONFIG.TILE);
+  for (let ty = y0; ty <= y1; ty++) {
+    for (let tx = x0; tx <= x1; tx++) {
+      if (!level.blocksMove(tx, ty)) continue;
+      const cx = Math.max(tx * CONFIG.TILE, Math.min(x, (tx + 1) * CONFIG.TILE));
+      const cy = Math.max(ty * CONFIG.TILE, Math.min(y, (ty + 1) * CONFIG.TILE));
+      if ((x - cx) * (x - cx) + (y - cy) * (y - cy) < radius * radius) return true;
+    }
+  }
+  return false;
+}
+
+export function updatePlayer(player, level, input, dt) {
+  let mx = (input.right ? 1 : 0) - (input.left ? 1 : 0);
+  let my = (input.down ? 1 : 0) - (input.up ? 1 : 0);
+  player.moving = mx !== 0 || my !== 0;
+  player.sneaking = !!input.sneak && player.moving;
+
+  if (player.moving) {
+    const len = Math.hypot(mx, my);
+    mx /= len;
+    my /= len;
+    player.dir = Math.atan2(my, mx);
+    const speed = player.sneaking
+      ? CONFIG.PLAYER_SNEAK_SPEED
+      : CONFIG.PLAYER_WALK_SPEED;
+    const radius = 13;
+    const nx = player.x + mx * speed * dt;
+    const ny = player.y + my * speed * dt;
+    // Axis-separated movement: slide along a wall instead of sticking.
+    if (!blockedAt(level, nx, player.y, radius)) player.x = nx;
+    if (!blockedAt(level, player.x, ny, radius)) player.y = ny;
+    player.walkCycle += dt * (player.sneaking ? 7 : 11);
+    player.stealProgress = 0;
+    player.stealing = null;
   }
 
-  update(dt) {
-    if (this.t < 1) {
-      this.t = Math.min(1, this.t + dt * 2.4);
-      this.x += (this.targetX - this.x) * 0.18;
-      this.y += (this.targetY - this.y) * 0.18;
-    } else {
-      this.ring += dt * 260;
-      if (this.ring > COIN_NOISE_RADIUS) this.done = true;
+  // Stealing: hold E beside a pedestal until the lift finishes.
+  player.stealing = null;
+  if (input.steal && !player.moving) {
+    for (const relic of level.relics) {
+      if (relic.taken) continue;
+      const d = Math.hypot(relic.x - player.x, relic.y - player.y);
+      if (d < CONFIG.STEAL_RANGE) {
+        player.stealing = relic;
+        player.stealProgress += dt / CONFIG.STEAL_SECONDS;
+        if (player.stealProgress >= 1) {
+          relic.taken = true;
+          player.relics += 1;
+          player.stealProgress = 0;
+          player.stealing = null;
+          return { type: "stole", relic };
+        }
+        break;
+      }
     }
+    if (!player.stealing) player.stealProgress = 0;
+  } else {
+    player.stealProgress = 0;
+  }
+  return null;
+}
+
+// Throw a coin toward a point. It flies, lands with a clink, and the
+// ring it makes is what pulls guards over. Returns the coin or null.
+export function throwCoin(player, targetX, targetY) {
+  if (player.coins <= 0) return null;
+  player.coins -= 1;
+  const dx = targetX - player.x;
+  const dy = targetY - player.y;
+  const dist = Math.hypot(dx, dy);
+  const range = Math.min(dist, CONFIG.COIN_THROW_RANGE);
+  const nx = dist > 0 ? player.x + (dx / dist) * range : player.x + 40;
+  const ny = dist > 0 ? player.y + (dy / dist) * range : player.y;
+  return {
+    x: player.x,
+    y: player.y,
+    fromX: player.x,
+    fromY: player.y,
+    toX: nx,
+    toY: ny,
+    flight: 0, // 0..1 along the arc
+    landed: false,
+    ring: 0, // seconds the clink ring has been visible
+    heardBy: new Set(),
+  };
+}
+
+export function updateCoin(coin, dt) {
+  if (!coin.landed) {
+    coin.flight = Math.min(1, coin.flight + dt / 0.28);
+    const t = coin.flight;
+    coin.x = coin.fromX + (coin.toX - coin.fromX) * t;
+    coin.y = coin.fromY + (coin.toY - coin.fromY) * t;
+    if (coin.flight >= 1) {
+      coin.landed = true;
+      coin.ring = 0.9;
+    }
+  } else if (coin.ring > 0) {
+    coin.ring = Math.max(0, coin.ring - dt);
   }
 }

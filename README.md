@@ -1,54 +1,51 @@
+# Museum of Shadows
+
 [![make.fun](https://make.fun/badge/best-stealth-game-20261121-1759.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
 [![rank](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/rank.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
 [![reward](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/reward.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
 
-# Museum of Shadows
+A night-museum stealth heist for the [make.fun bounty "Make the best stealth game"](https://make.fun/bounty/best-stealth-game-20261121-1759) — $50, top 10 paid.
 
-A top-down stealth game for the [make.fun bounty "Make the best stealth game"](https://make.fun/bounty/best-stealth-game-20261121-1759). One night in a museum, three relics behind glass, eight guards on patrol — steal them all and reach the EXIT unseen.
+You are the thief. Slip into the museum after dark, lift all 3 relics — the Golden Scarab, the Jade Mask, the Star Sapphire — and reach the green EXIT unseen. Eight guards walk fixed patrols with vision cones; display cases block their sight, so cover is real. Get spotted and suspicion climbs: a guard who grows suspicious comes to look, and a guard who is sure raises the alarm and gives chase. Throw a coin to pull a guard away from your path. Get grabbed and the run is over.
 
-## How to play
+## Play
 
-Open `game/index.html` in a desktop browser (or serve `game/` with any static server). No network, no build step, no install.
+Open `game/index.html` from any static server — no build step, no network requests, everything is drawn on canvas with plain JavaScript:
 
-- **WASD / arrows** — move
-- **SHIFT** — sneak: slow and quiet, much harder to spot
-- **CLICK** — throw a coin; the clink pulls nearby guards toward it
-- **R** — restart · **M** — mute
+```sh
+python3 -m http.server 8080 --directory game
+# then open http://localhost:8080
+```
 
-## The rules of the night
+| Key | Action |
+| --- | --- |
+| WASD / arrows | Move |
+| SHIFT | Sneak (slower, harder to spot) |
+| E (hold) | Lift a relic off its pedestal |
+| SPACE or CLICK | Throw a coin to distract a guard |
+| P | Pause |
+| R | Retry after being busted or escaping |
 
-- **Vision cones** — gold when calm, amber when wary, red when hunting. A cone only sees you if you are inside it *and* no case or wall stands between you.
-- **Light is danger** — lamplight fills a guard's suspicion meter fast; the dark floor between the pools barely fills it at all.
-- **Suspicion is a meter, not a switch** — being glimpsed fills it, hiding drains it. Only a full meter turns a guard into a hunter, and a hunter who loses you searches your last seen spot, then calms down and returns to patrol. You can recover from almost being caught.
-- **Running is loud** — your footsteps carry, and guards come to look. Sneak past, or spend a coin to send them the other way.
-- **Patrols can be learned** — all eight guards walk fixed loops, drawn as dotted lines on the floor. Watch, wait, slip through the gaps.
+The exit stays locked until all 3 relics are stolen. Finish with zero alarms raised for a GHOST rating.
 
-Steal the Jade Scarab, the Moon Pearl and the Golden Ibis, then slip out the south door. Escape without ever being spotted for the perfect run.
+## How it is built
 
-## Sound
-
-All sound is synthesized live with WebAudio — footsteps, coin clinks, relic chimes, the alarm sting. A guard's tread grows louder as he nears you: listen for it.
-
-## Structure
-
-- `main.ts` — the make.fun entrypoint: copies `game/` and `screenshots/` to the output dir and writes `dossier.json`
-- `game/index.html` + `game/style.css` — the page and the HUD
-- `game/src/main.js` — bootstrap, game loop, input, win/lose
-- `game/src/level.js` — the museum: walls, cover, lamps, relics, exit, patrol routes
-- `game/src/guards.js` — patrols, vision cones, suspicion, pursuit
-- `game/src/player.js` — the thief: movement, sneak, noise, the thrown coin
-- `game/src/render.js` — all canvas drawing
-- `game/src/audio.js` — synthesized sound
-- `game/src/ui.js` — HUD, suspicion meter, overlays
-- `vendor/makefun-game.ts` — the kit's dossier library, copied unchanged
-
-## Run the entrypoint
+- `game/index.html` + `game/style.css` — the page and its chrome.
+- `game/src/config.js` — every tuning number in one place.
+- `game/src/level.js` — the museum map, relics, cases, exit, guard routes.
+- `game/src/guards.js` — patrol AI, vision cones, line of sight, suspicion, alarm, investigation.
+- `game/src/player.js` — movement, collision, sneaking, coin throws, stealing.
+- `game/src/render.js` — all canvas drawing: floor, cones, cover, HUD, title and end screens.
+- `game/src/audio.js` — small synthesised sounds (WebAudio, no files).
+- `game/src/shots.js` — the four staged moments under `screenshots/`.
+- `game/src/main.js` — the loop, input, and state machine.
+- `main.ts` — the hand-in program (Node 22, standard library only): copies `game/` and `screenshots/` to the output directory and writes `dossier.json` with `buildDossier` from `vendor/makefun-game.ts` (the kit's copy, unchanged).
 
 ```sh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-This writes `out/game/`, `out/screenshots/` and `out/dossier.json`. Run it twice: the bytes are identical.
+Screenshots are real renders of the game's own code in a desktop browser: the title over a living museum, a near-miss behind a display case, a full alarm chase, and the clean getaway.
 
 ## License
 

@@ -1,155 +1,135 @@
-// Museum of Shadows — level layout: walls, cover, lamps, relics, exit, patrols.
-// One screen, 1280 x 720, top-down. Everything here is data; the systems in
-// guards.js, player.js and render.js read it, they never hard-code positions.
+// Museum of Shadows — the museum itself: walls, display cases (cover),
+// the three relic pedestals, the exit, and the thief's entrance.
+// Legend: # wall, . floor, C display case, R relic pedestal, E exit, P spawn.
+// The map is 32 by 20 tiles of 40 px, exactly one 1280x800 screen, so
+// the whole level — cones, cover and exit — is visible in every shot.
+import { CONFIG } from "./config.js";
 
-export const LEVEL_WIDTH = 1280;
-export const LEVEL_HEIGHT = 720;
-export const WALL = 24;
-
-// Solid rectangles. They block movement and block a guard's line of sight.
-export const WALLS = [
-  // Outer frame
-  { x: 0, y: 0, w: 1280, h: WALL },
-  { x: 0, y: 720 - WALL, w: 1280, h: WALL },
-  { x: 0, y: 0, w: WALL, h: 720 },
-  { x: 1280 - WALL, y: 0, w: WALL, h: 720 },
-  // Wing divider A (x = 420): door gap y 300..420
-  { x: 420, y: WALL, w: 16, h: 276 },
-  { x: 420, y: 420, w: 16, h: 276 },
-  // Wing divider B (x = 844): door gap y 300..420
-  { x: 844, y: WALL, w: 16, h: 276 },
-  { x: 844, y: 420, w: 16, h: 276 },
+export const MAP = [
+  "################################",
+  "#.......#.......#......#.......#",
+  "#..R....#...C...#..C...#...R...#",
+  "#.......#.......#......#.......#",
+  "#..C....#...C...#..C...#.......#",
+  "#.......#.......#......#.......#",
+  "###.#######..#######..#######.##",
+  "#..............................#",
+  "#..C......C.....C......C....C..#",
+  "#..............................#",
+  "#......C..........C............#",
+  "#..............................#",
+  "###.#######..#######..#######.##",
+  "#.......#.......#......#.......#",
+  "#..C....#...C...#..C...#...C...#",
+  "#.......#.......#......#.......#",
+  "#.......#...R...#......#.......#",
+  "#.......#.......#......#.......#",
+  "#..P...........................#",
+  "###############EE###############",
 ];
 
-// Display cases and pillars. They block movement and sight: the cover you
-// crouch behind. Cases are wide, pillars are small squares.
-export const COVER = [
-  // West wing
-  { x: 110, y: 110, w: 130, h: 62, kind: 'case' },
-  { x: 110, y: 430, w: 130, h: 62, kind: 'case' },
-  { x: 290, y: 250, w: 62, h: 130, kind: 'case' },
-  // Central hall
-  { x: 560, y: 110, w: 160, h: 62, kind: 'case' },
-  { x: 560, y: 480, w: 160, h: 62, kind: 'case' },
-  { x: 500, y: 210, w: 38, h: 38, kind: 'pillar' },
-  { x: 742, y: 210, w: 38, h: 38, kind: 'pillar' },
-  { x: 500, y: 560, w: 38, h: 38, kind: 'pillar' },
-  { x: 742, y: 560, w: 38, h: 38, kind: 'pillar' },
-  // East wing
-  { x: 1040, y: 110, w: 130, h: 62, kind: 'case' },
-  { x: 1040, y: 430, w: 130, h: 62, kind: 'case' },
-  { x: 928, y: 250, w: 62, h: 130, kind: 'case' },
+export const RELIC_NAMES = [
+  "Golden Scarab",
+  "Jade Mask",
+  "Star Sapphire",
 ];
 
-// Every solid obstacle, walls plus cover, for collision and line of sight.
-export const SOLIDS = [...WALLS, ...COVER];
-
-// Warm pools of lamplight. Standing in one, a guard spots you far faster;
-// the dark floor between them is where a thief belongs.
-export const LAMPS = [
-  { x: 175, y: 175, r: 118 },
-  { x: 175, y: 545, r: 118 },
-  { x: 640, y: 360, r: 128 },
-  { x: 1105, y: 175, r: 118 },
-  { x: 1105, y: 545, r: 118 },
-  { x: 640, y: 90, r: 96 },
-];
-
-// The three relics. Steal all three, then reach the exit.
-export const RELICS = [
-  { id: 'scarab', name: 'Jade Scarab', x: 175, y: 315, color: '#4ce08a' },
-  { id: 'pearl', name: 'Moon Pearl', x: 640, y: 300, color: '#9fd8ff' },
-  { id: 'ibis', name: 'Golden Ibis', x: 1105, y: 315, color: '#f2c94c' },
-];
-
-// The way out: the south door of the central hall.
-export const EXIT_ZONE = { x: 600, y: 640, w: 80, h: 56 };
-
-export const PLAYER_START = { x: 120, y: 620 };
-
-// Eight guards, each with a patrol loop of waypoints. Learn the loops and
-// the gaps between them are yours.
 export const GUARD_ROUTES = [
-  { name: 'Warden Ash', waypoints: [[300, 120], [300, 560]] },
-  { name: 'Warden Birch', waypoints: [[90, 360], [360, 360]] },
-  { name: 'Warden Cade', waypoints: [[480, 90], [800, 90]] },
-  { name: 'Warden Dove', waypoints: [[480, 360], [800, 360]] },
-  { name: 'Warden Elm', waypoints: [[480, 620], [800, 620]] },
-  { name: 'Warden Fern', waypoints: [[980, 120], [980, 560]] },
-  { name: 'Warden Gale', waypoints: [[920, 360], [1190, 360]] },
-  { name: 'Warden Hale', waypoints: [[640, 90], [1180, 90], [1180, 620], [90, 620], [90, 90], [640, 90]] },
+  // West gallery, north.
+  [[2, 1], [6, 1], [6, 5], [2, 5]],
+  // Central-west gallery, north.
+  [[10, 1], [14, 1], [14, 5], [10, 5]],
+  // Central-east gallery, north.
+  [[18, 1], [21, 1], [21, 5], [18, 5]],
+  // East gallery, north.
+  [[25, 1], [29, 1], [29, 5], [25, 5]],
+  // Grand hall, west half.
+  [[2, 7], [15, 7], [15, 11], [2, 11]],
+  // Grand hall, east half.
+  [[17, 7], [29, 7], [29, 11], [17, 11]],
+  // Central galleries, south (guards the Star Sapphire).
+  [[10, 13], [14, 13], [14, 17], [10, 17]],
+  // East gallery, south.
+  [[25, 13], [29, 13], [29, 17], [25, 17]],
 ];
 
-/** True when the point lies inside any solid rectangle. */
-export function pointInSolid(x, y) {
-  for (const s of SOLIDS) {
-    if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) return true;
-  }
-  return false;
-}
+export function buildLevel() {
+  const grid = MAP.map((row) => row.split(""));
+  const relics = [];
+  const cases = [];
+  let spawn = { x: 3.5 * CONFIG.TILE, y: 18.5 * CONFIG.TILE };
+  const exitTiles = [];
 
-/** True when the point stands inside a pool of lamplight. */
-export function pointInLight(x, y) {
-  for (const lamp of LAMPS) {
-    const dx = x - lamp.x;
-    const dy = y - lamp.y;
-    if (dx * dx + dy * dy <= lamp.r * lamp.r) return true;
-  }
-  return false;
-}
-
-function segmentHitsRect(x1, y1, x2, y2, r) {
-  // Slab test: does the segment cross the rectangle?
-  const dx = x2 - x1;
-  const dy = y2 - y1;
-  let tMin = 0;
-  let tMax = 1;
-  for (const [p, q] of [[-dx, x1 - r.x], [dx, r.x + r.w - x1], [-dy, y1 - r.y], [dy, r.y + r.h - y1]]) {
-    if (p === 0) {
-      if (q < 0) return false;
-    } else {
-      const t = q / p;
-      if (p < 0) {
-        if (t > tMax) return false;
-        if (t > tMin) tMin = t;
-      } else {
-        if (t < tMin) return false;
-        if (t < tMax) tMax = t;
+  for (let ty = 0; ty < CONFIG.ROWS; ty++) {
+    for (let tx = 0; tx < CONFIG.COLS; tx++) {
+      const ch = grid[ty][tx];
+      const cx = (tx + 0.5) * CONFIG.TILE;
+      const cy = (ty + 0.5) * CONFIG.TILE;
+      if (ch === "R") {
+        relics.push({
+          index: relics.length,
+          name: RELIC_NAMES[relics.length] || "Relic",
+          tx,
+          ty,
+          x: cx,
+          y: cy,
+          taken: false,
+        });
+      } else if (ch === "C") {
+        cases.push({ tx, ty, x: cx, y: cy });
+      } else if (ch === "P") {
+        spawn = { x: cx, y: cy };
+      } else if (ch === "E") {
+        exitTiles.push({ tx, ty, x: cx, y: cy });
       }
     }
   }
-  return true;
+
+  const inBounds = (tx, ty) =>
+    tx >= 0 && ty >= 0 && tx < CONFIG.COLS && ty < CONFIG.ROWS;
+  const tileAt = (tx, ty) => (inBounds(tx, ty) ? grid[ty][tx] : "#");
+  const isWall = (tx, ty) => tileAt(tx, ty) === "#";
+  const isCase = (tx, ty) => tileAt(tx, ty) === "C";
+  const blocksMove = (tx, ty) => isWall(tx, ty) || isCase(tx, ty);
+  // Walls and display cases both block a guard's line of sight:
+  // crouching behind a case is real cover.
+  const blocksSight = (tx, ty) => isWall(tx, ty) || isCase(tx, ty);
+  const isExit = (tx, ty) => tileAt(tx, ty) === "E";
+
+  return {
+    grid,
+    relics,
+    cases,
+    spawn,
+    exitTiles,
+    tileAt,
+    isWall,
+    isCase,
+    blocksMove,
+    blocksSight,
+    isExit,
+  };
 }
 
-/** True when no solid stands between the two points. */
-export function hasLineOfSight(x1, y1, x2, y2) {
-  for (const s of SOLIDS) {
-    if (segmentHitsRect(x1, y1, x2, y2, s)) return false;
-  }
-  return true;
+// Pixel position -> tile coordinates.
+export function tileOf(x, y) {
+  return {
+    tx: Math.floor(x / CONFIG.TILE),
+    ty: Math.floor(y / CONFIG.TILE),
+  };
 }
 
-/** Push a circle out of every solid it overlaps; returns the corrected spot. */
-export function resolveCircle(x, y, radius) {
-  let nx = x;
-  let ny = y;
-  for (const s of SOLIDS) {
-    const cx = Math.max(s.x, Math.min(nx, s.x + s.w));
-    const cy = Math.max(s.y, Math.min(ny, s.y + s.h));
-    const dx = nx - cx;
-    const dy = ny - cy;
-    const d2 = dx * dx + dy * dy;
-    if (d2 < radius * radius) {
-      if (d2 === 0) {
-        ny = s.y - radius;
-      } else {
-        const d = Math.sqrt(d2);
-        nx = cx + (dx / d) * radius;
-        ny = cy + (dy / d) * radius;
-      }
-    }
+// Is the straight line between two points blocked by sight-blocking tiles?
+// Samples along the ray; cheap and exact enough for cone checks.
+export function lineBlocked(level, x0, y0, x1, y1) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const dist = Math.hypot(dx, dy);
+  const steps = Math.max(1, Math.ceil(dist / 8));
+  for (let i = 1; i < steps; i++) {
+    const t = i / steps;
+    const { tx, ty } = tileOf(x0 + dx * t, y0 + dy * t);
+    if (level.blocksSight(tx, ty)) return true;
   }
-  nx = Math.max(WALL + radius, Math.min(LEVEL_WIDTH - WALL - radius, nx));
-  ny = Math.max(WALL + radius, Math.min(LEVEL_HEIGHT - WALL - radius, ny));
-  return { x: nx, y: ny };
+  return false;
 }

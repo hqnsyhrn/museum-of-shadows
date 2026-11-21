@@ -1,121 +1,67 @@
-// Museum of Shadows — sound, synthesized live with WebAudio. No audio files,
-// no network: footsteps, a coin's clink, a relic's chime and the alarm sting
-// are all oscillators and filtered noise built at run time.
-// Footsteps are the tell: a guard's tread grows louder as he nears you.
+// Museum of Shadows — tiny synthesised sounds, no audio files.
+// Everything is a WebAudio oscillator, created only after the player's
+// first key or click, so the game stays silent (and error-free) in a
+// headless screenshot run where nobody ever presses a key.
+const audio = {
+  context: null,
+  enabled: true,
 
-export class SoundBank {
-  constructor() {
-    this.ctx = null;
-    this.muted = false;
-    this.master = null;
-    this.ambient = null;
-  }
-
-  /** Browsers only let audio start after a gesture; call from the first one. */
   ensure() {
-    if (this.ctx) {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
-      return;
+    if (!this.enabled || this.context) return;
+    try {
+      const Ctor =
+        window.AudioContext ||
+        window.webkitAudioContext;
+      if (!Ctor) return;
+      this.context = new Ctor();
+    } catch {
+      this.context = null;
     }
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    this.ctx = new AudioContext();
-    this.master = this.ctx.createGain();
-    this.master.gain.value = 0.5;
-    this.master.connect(this.ctx.destination);
-    this.startAmbient();
-  }
+  },
 
-  toggleMute() {
-    this.muted = !this.muted;
-    if (this.master) this.master.gain.value = this.muted ? 0 : 0.5;
-    return this.muted;
-  }
+  tone(freq, seconds, type, gainValue) {
+    if (!this.enabled || !this.context) return;
+    try {
+      const t0 = this.context.currentTime;
+      const osc = this.context.createOscillator();
+      const gain = this.context.createGain();
+      osc.type = type || "sine";
+      osc.frequency.setValueAtTime(freq, t0);
+      gain.gain.setValueAtTime(gainValue || 0.08, t0);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + seconds);
+      osc.connect(gain);
+      gain.connect(this.context.destination);
+      osc.start(t0);
+      osc.stop(t0 + seconds);
+    } catch {
+      // Sound is garnish; a failure must never break the game.
+    }
+  },
 
-  /** A low room tone: the museum breathing at night. */
-  startAmbient() {
-    const ctx = this.ctx;
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.5;
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    source.loop = true;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 220;
-    const gain = ctx.createGain();
-    gain.gain.value = 0.035;
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.master);
-    source.start();
-    this.ambient = source;
-  }
+  coin() {
+    this.tone(1567, 0.12, "triangle", 0.07);
+    setTimeout(() => this.tone(2093, 0.16, "triangle", 0.05), 70);
+  },
 
-  /** Short filtered noise burst — a footstep. Pan tells you which side. */
-  footstep(pan, loud) {
-    if (!this.ctx || this.muted) return;
-    const ctx = this.ctx;
-    const dur = 0.07;
-    const buffer = ctx.createBuffer(1, ctx.sampleRate * dur, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
-    const source = ctx.createBufferSource();
-    source.buffer = buffer;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = 500;
-    const gain = ctx.createGain();
-    gain.gain.value = loud;
-    const panner = ctx.createStereoPanner();
-    panner.pan.value = Math.max(-1, Math.min(1, pan));
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(panner);
-    panner.connect(this.master);
-    source.start();
-  }
+  pickup() {
+    this.tone(523, 0.12, "sine", 0.09);
+    setTimeout(() => this.tone(784, 0.2, "sine", 0.09), 90);
+  },
 
-  /** A bright metallic ping. */
-  coinClink() {
-    if (!this.ctx || this.muted) return;
-    this.tone(2093, 0.09, 0.12, 'sine');
-    this.tone(2637, 0.12, 0.08, 'sine');
-  }
+  alarm() {
+    this.tone(220, 0.25, "sawtooth", 0.06);
+    setTimeout(() => this.tone(174, 0.3, "sawtooth", 0.06), 180);
+  },
 
-  /** A soft rising chime when a relic is lifted. */
-  relicChime() {
-    if (!this.ctx || this.muted) return;
-    this.tone(523, 0.16, 0.14, 'sine');
-    setTimeout(() => this.tone(784, 0.2, 0.14, 'sine'), 90);
-    setTimeout(() => this.tone(1046, 0.3, 0.14, 'sine'), 190);
-  }
+  win() {
+    [523, 659, 784, 1046].forEach((f, i) =>
+      setTimeout(() => this.tone(f, 0.22, "sine", 0.09), i * 110),
+    );
+  },
 
-  /** The alarm sting: two low brass-ish notes when a guard goes alert. */
-  alarmSting() {
-    if (!this.ctx || this.muted) return;
-    this.tone(220, 0.22, 0.2, 'sawtooth');
-    setTimeout(() => this.tone(174, 0.3, 0.2, 'sawtooth'), 140);
-  }
+  busted() {
+    this.tone(110, 0.5, "sawtooth", 0.08);
+  },
+};
 
-  /** A warm major chord for the escape. */
-  winChord() {
-    if (!this.ctx || this.muted) return;
-    [523, 659, 784, 1046].forEach((f, i) => setTimeout(() => this.tone(f, 0.5, 0.12, 'triangle'), i * 110));
-  }
-
-  tone(freq, dur, vol, type) {
-    const ctx = this.ctx;
-    const osc = ctx.createOscillator();
-    osc.type = type;
-    osc.frequency.value = freq;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(vol, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-    osc.connect(gain);
-    gain.connect(this.master);
-    osc.start();
-    osc.stop(ctx.currentTime + dur);
-  }
-}
+export { audio };
