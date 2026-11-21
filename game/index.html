@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Museum of Shadows — a stealth game</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="1280" height="720"></canvas>
+  <div id="hud">
+    <div id="hud-left">
+      <span id="hud-title">MUSEUM OF SHADOWS</span>
+      <span id="hud-objective">Steal the 3 relics, then reach the EXIT unseen.</span>
+    </div>
+    <div id="hud-mid">
+      <span id="hud-relics" aria-label="relics collected"></span>
+    </div>
+    <div id="hud-right">
+      <span id="hud-status">UNSEEN</span>
+      <span id="hud-timer">00:00</span>
+    </div>
+  </div>
+  <div id="alarm-wrap"><div id="alarm-fill"></div><span id="alarm-label">SUSPICION</span></div>
+  <div id="toast"></div>
+  <div id="hint">WASD / arrows — move &nbsp;·&nbsp; SHIFT — sneak (slow, quiet) &nbsp;·&nbsp; CLICK — throw a coin &nbsp;·&nbsp; R — restart &nbsp;·&nbsp; M — mute</div>
+  <div id="overlay" class="hidden">
+    <div id="overlay-card">
+      <h1 id="overlay-title"></h1>
+      <p id="overlay-text"></p>
+      <p id="overlay-stats"></p>
+      <button id="overlay-button">Play again</button>
+    </div>
+  </div>
+</div>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
