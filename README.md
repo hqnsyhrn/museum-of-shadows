@@ -1,41 +1,66 @@
-# Museum of Shadows
+[![Make.fun](https://make.fun/badge/best-stealth-game-20261121-1759.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
+[![Rank](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/rank.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
+[![Reward](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/reward.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
 
-[![make.fun](https://make.fun/badge/best-stealth-game-20261121-1759.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
-[![rank](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/rank.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
-[![reward](https://make.fun/badge/best-stealth-game-20261121-1759/hqnsyhrn/museum-of-shadows/reward.svg)](https://make.fun/bounty/best-stealth-game-20261121-1759)
+# Museum of Shadows — 3 relics, 8 guards, coin toss & the Sweeping Skylight
 
-A night-museum stealth heist for the [best stealth game bounty](https://make.fun/bounty/best-stealth-game-20261121-1759) on make.fun. Slip through the dark galleries after closing time, lift the three relics — the Golden Mask, the Jade Idol and the Star Sapphire — and reach the green exit door without ever being seen.
+A night-museum stealth heist in true 3D isometric. One thief, one hall, one
+job: steal the **Golden Scarab**, the **Jade Idol** and the **Crimson Crown**,
+then reach the green EXIT unseen.
 
-## How to play
+- **8 named wardens** patrol the hall — Corvin, Mirelle, Odo, Sable, Fen,
+  Ilya, Bram and Nox — each with vision cones, a suspicion meter, a chase,
+  and a search when they lose you. A near miss raises the alarm; a clean
+  break lets it cool down.
+- **The Sweeping Skylight** — the signature mechanic. A great beam from the
+  glass roof circles the hall on a slow, learnable sweep. Stand in its pool
+  of light and every warden spots you twice as fast; wait in shadow and you
+  are hard to see. The sweep is the clock the heist runs on.
+- **Coin toss distraction** — three coins. Throw one and every warden in
+  earshot leaves their patrol to look at where it landed.
+- **Sneak** — hold Shift to move slow and near-silent, and far harder to spot.
+- **The museum itself** — gold-framed paintings, velvet rope barriers, brass
+  plaques, wall lamps, a CLOSED banner, and a red carpet down the middle of
+  the marble hall. Cover is real: pedestals, columns and walls block a
+  warden's line of sight.
 
-Open `game/index.html` in a desktop browser (or serve `game/` with any static server). No network needed — everything is local.
+## Play
 
-- **Move:** WASD or arrow keys. **Sneak:** hold Shift (slower, much harder to spot).
-- **Steal:** stand beside a glowing relic pedestal and hold **E** until the lift finishes.
-- **Distract:** press **C** or click the floor to toss a coin — nearby guards walk over to investigate the clink.
-- **Win:** steal all three relics, then reach the glowing green exit.
-- **Lose:** a guard who fully spots you gives chase. If he catches you, the heist is over.
+Open `game/index.html` in desktop Chrome (or `node serve.ts`, then
+http://localhost:8080). No build step, no network — every file the game loads
+sits under `game/`.
 
-## The stealth
+| Key | Action |
+| --- | --- |
+| WASD / arrows | Move |
+| Shift | Sneak (slow, quiet, hard to see) |
+| Space / click | Throw a coin |
+| E | Steal a relic up close |
+| R | Restart |
 
-Eight guards patrol fixed routes through the galleries, each sweeping a bright vision cone across the marble floor. Walls and display pedestals block their sight — crouch behind cover, watch the cones, and move when a guard turns away. The suspicion meter fills while you are inside a cone in plain sight (faster up close, slower while sneaking) and drains when you break line of sight. At full suspicion a guard shouts, his cone turns red, and he runs you down.
+Steal all three relics, then reach the green EXIT. If a warden catches you,
+the heist is over.
 
-## The look
+## Files
 
-The museum is rendered with a hand-written 3D projection: an angled camera, solid extruded geometry with real height — walls, pedestals, columns and the thief and guards themselves — directional face shading, floor shadows, warm lamp pools and a night vignette. No 3D library, no network assets; the projection, shading and lighting code is all in `game/src/projection.js` and `game/src/render.js`.
+- `game/src/config.js` — the hall, the relics, the wardens, the skylight
+- `game/src/projection.js` — isometric projection, tile to screen
+- `game/src/level.js` — the map, solid ground, line of sight
+- `game/src/skylight.js` — the sweeping beam and what it lights
+- `game/src/guards.js` — patrols, vision cones, suspicion, chase, search
+- `game/src/player.js` — the thief: move, sneak, coin, steal, exit
+- `game/src/audio.js` — footsteps, coins and alarms, synthesized live
+- `game/src/render.js` — the museum, the HUD rail, the banners
+- `game/src/shots.js` — the four staged screenshot moments
+- `game/src/main.js` — the game loop and input
 
-## Layout
+## Hand in
 
-- `main.ts` — the make.fun hand-in program: copies `game/` and `screenshots/` to the output directory and writes `dossier.json`.
-- `vendor/makefun-game.ts` — the kit's dossier library, unchanged.
-- `game/index.html` — the game page (canvas + HUD).
-- `game/src/config.js` — tuning, colours and the museum map.
-- `game/src/projection.js` — the angled 3D camera, box drawing and shading.
-- `game/src/level.js` — the museum grid: walls, cover, relics, exit, lamps.
-- `game/src/guards.js` — guard patrols, vision cones, suspicion and chase AI.
-- `game/src/player.js` — the thief: movement, collision, coin throws, stealing.
-- `game/src/render.js` — draws the whole museum, figures, cones and night light.
-- `game/src/audio.js` — small WebAudio blips (coin, alert, lift, win).
-- `game/src/shots.js` — fixed demo states for the screenshots.
-- `game/src/main.js` — game loop, input, states and HUD.
-- `screenshots/` — four real renders of this game running in a browser.
+`main.ts` (Node 22) copies `game/` and `screenshots/` to `/output` and writes
+`/output/dossier.json` with the vendored make.fun library:
+
+```sh
+mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+```
+
+Built for the [make.fun best stealth game bounty](https://make.fun/bounty/best-stealth-game-20261121-1759).
